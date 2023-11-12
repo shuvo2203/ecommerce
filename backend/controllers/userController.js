@@ -1,6 +1,7 @@
 const User = require('../models/userModel');
 // const sendToken = require('../utils/jwtTokens');
 const sendEmail = require('../utils/sendEmail');
+const crypto = require('crypto');
 
 
 //register a user
@@ -101,4 +102,103 @@ exports.forgotPassword =async(req, res, next)=>{
         res.status(500).json(error);
         console.log(error)
     }
+}
+
+//reset paassword
+exports.resetPassword=async(req, res, next)=>{
+    //creating token hash
+    const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+    const user = await User.findOne({
+        resetPasswordToken,
+        resetPasswordExpire:{$gt:Date.now()}
+    });
+    if(!user){
+        res.status(400).json('reset password token is invalid or has been expired');
+    }
+    if(req.body.password !== req.body.confirmPassword){
+        res.status(400).json('password does not match');
+    }
+    user.password = req.body.password
+    user.resetPasswordToken = undefined
+    user.resetPasswordExpire = undefined
+
+    await user.save();
+
+    const token = user.getJWTToken();
+
+    res.cookie('token', token);
+
+    res.status(201).json({
+        success:true,
+        token
+    });
+    
+}
+
+
+//get user details
+exports.getUserDetails=async(req, res)=>{
+    const user = await User.findById(req.user.id);
+    res.status(200).json({
+        success:true,
+        user
+    });
+}
+
+//update user password
+exports.updatePassword=async(req, res)=>{
+    const user = await User.findById(req.user.id).select("+password");
+    const isPasswordMatched = await user.comparePassword(req.body.oldPassword);
+    if(!isPasswordMatched){
+        res.status(400).json('email or password invalid');
+    }
+    if(req.body.newPassword !== req.body.confirmPassword){
+        res.status(400).json('password does not match');
+    }
+    user.password = req.body.newPassword;
+    await user.save();
+
+    const token = getJWTToken();
+    res.cookie('token', token);
+
+    res.status(200).json({
+        success:true,
+        token
+    })
+}
+
+//update user profile
+exports.updateProfile = async(req, res)=>{
+
+    const newUserData={
+        name:req.body.name,
+        email:req.body.email
+    }
+    const user = await User.findByIdAndUpdate(req.user.id, newUserData,{
+        new:true
+    });
+    res.status(200).json({
+        success:true,
+    });
+}
+
+//get all user
+exports.getAllUser = async(req, res)=>{
+    const users = await User.find();
+    res.status(200).json({
+        success:true,
+        users
+    });
+}
+
+//get single user --admin
+exports.getUserDetail = async(req, res)=>{
+    const user = await User.findById(req.params.id);
+    if(!user){
+        res.status(400).json('user not found with this id');
+    }
+    res.status(200).json({
+        success:true,
+        user
+    });
 }
