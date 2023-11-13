@@ -202,3 +202,28 @@ exports.getUserDetail = async(req, res)=>{
         user
     });
 }
+
+
+//update user role--admin
+exports.updateUserRole = async(req, res)=>{
+    const newUserData = {
+        name:req.body.name,
+        email:req.body.email,
+        role:req.body.role
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, newUserData,{
+        new:true
+    });
+    res.status(200).json({
+        success:true,
+    });
+}
+
+//user delete
+exports.deleteUser=async(req, res)=>{
+    const user = await User.findByIdAndDelete(req.params.id);
+    if(!user){
+        res.status(400).json('user not found');
+    }
+    res.status(200).json('user delete successfully');
+}
